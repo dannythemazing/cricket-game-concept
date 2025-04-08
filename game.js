@@ -178,21 +178,23 @@ class Ball {
         }, 1000);
     }
 
-    showMissText() {
-        const missElement = document.createElement('div');
-        missElement.className = 'miss-text';
-        missElement.textContent = 'MISS';
+    showMissText(x, y) {
+        // Remove any existing miss text
+        const existingMissTexts = document.querySelectorAll('.miss-text');
+        existingMissTexts.forEach(text => text.remove());
         
-        // Position the miss text above the ball
-        missElement.style.left = `${this.position.x}px`;
-        missElement.style.top = `${this.position.y - this.currentSize/2}px`;
+        // Create and show new miss text
+        const missText = document.createElement('div');
+        missText.className = 'miss-text';
+        missText.textContent = 'Miss!';
+        missText.style.left = x + 'px';
+        missText.style.top = y + 'px';
+        document.body.appendChild(missText);
         
-        this.container.appendChild(missElement);
-        
-        // Remove the miss text after animation
+        // Remove the text after animation
         setTimeout(() => {
-            if (missElement.parentNode) {
-                missElement.parentNode.removeChild(missElement);
+            if (missText.parentNode) {
+                missText.parentNode.removeChild(missText);
             }
         }, 1000);
     }
@@ -277,7 +279,7 @@ class Ball {
         clearTimeout(this.removalTimeout);
         
         this.element.className = 'target miss';
-        this.showMissText();
+        this.showMissText(this.position.x, this.position.y);
         
         // Reset streak for both timeout and active misses
         this.game.handleMiss();
@@ -558,48 +560,12 @@ class Game {
         }
     }
 
-    handleGlobalMiss(e) {
-        // Player clicked outside any ball - count as an active miss
-        this.playMissSound();
-        
-        // Find the closest ball and make it miss
-        let closestBall = null;
-        let closestDistance = Infinity;
-        const rect = this.gameContainer.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        
-        for (const ball of this.balls) {
-            const dx = x - ball.position.x;
-            const dy = y - ball.position.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            
-            if (distance < closestDistance) {
-                closestDistance = distance;
-                closestBall = ball;
-            }
+    handleGlobalMiss(event) {
+        // Only show miss text if we clicked in the game container
+        if (event.target.classList.contains('game-container')) {
+            this.showMissText(event.clientX, event.clientY);
+            this.handleMiss();
         }
-        
-        if (closestBall) {
-            closestBall.miss(false); // Active miss
-        }
-        
-        // Show miss text at clicked position
-        const missElement = document.createElement('div');
-        missElement.className = 'miss-text';
-        missElement.textContent = 'MISS';
-        
-        missElement.style.left = `${x}px`;
-        missElement.style.top = `${y}px`;
-        
-        this.gameContainer.appendChild(missElement);
-        
-        // Remove the miss text after animation
-        setTimeout(() => {
-            if (missElement.parentNode) {
-                missElement.parentNode.removeChild(missElement);
-            }
-        }, 1000);
     }
 
     setupControlButtons() {
