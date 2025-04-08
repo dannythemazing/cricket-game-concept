@@ -8,10 +8,10 @@ class Ball {
         // Adjust size based on screen size
         const isMobile = window.innerWidth <= 768;
         this.currentSize = isMobile ? 
-            Math.random() * 60 + 140 : // Mobile: 140-200px (was 120-180px)
-            Math.random() * 80 + 170;  // Desktop: 170-250px (was 150-230px)
+            Math.random() * 40 + 80 : // Mobile: 80-120px (was 140-200px)
+            Math.random() * 80 + 170;  // Desktop: 170-250px
             
-        this.lifespan = Math.random() * 3500 + 3000; // Increased lifespan 3-6.5 seconds (was 2.5-5.5s)
+        this.lifespan = Math.random() * 3500 + 3000; // 3-6.5 seconds
         this.position = { x: 0, y: 0 };
         this.shrinkInterval = null;
         this.container.appendChild(this.element);
