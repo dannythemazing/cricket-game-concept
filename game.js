@@ -369,15 +369,61 @@ class Game {
     }
 
     initSounds() {
-        // Create audio elements for background music
-        this.bgMusic = new Audio('assets/bg.m4a');
-        this.bgMusic.loop = true;
-        this.arcticBgMusic = new Audio('assets/arctic_bg.m4a');
-        this.arcticBgMusic.loop = true;
-
         // Initialize sound state
         this.soundEnabled = true;
-        this.currentEnvironment = 'jungle';
+        this.currentEnvironment = 'jungle'; // Default environment
+        
+        // Create audio element for background music
+        this.bgMusic = new Audio('assets/bg.m4a');
+        this.bgMusic.loop = true;
+        
+        // Set initial sound button state
+        this.updateSoundButtonState();
+    }
+
+    updateSoundButtonState() {
+        if (this.soundEnabled) {
+            this.soundButton.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                </svg>
+            `;
+            this.soundButton.classList.remove('active');
+        } else {
+            this.soundButton.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+                </svg>
+            `;
+            this.soundButton.classList.add('active');
+        }
+    }
+
+    toggleSound() {
+        this.soundEnabled = !this.soundEnabled;
+        this.updateSoundButtonState();
+        
+        if (this.soundEnabled) {
+            // Resume background music if game is running and not paused
+            if (this.gameStarted && !this.isPaused) {
+                this.bgMusic.play().catch(e => console.log('Error playing background music:', e));
+            }
+        } else {
+            // Stop all sounds
+            this.bgMusic.pause();
+        }
+    }
+
+    resumeBackgroundMusic() {
+        if (this.gameStarted && !this.isPaused && this.bgMusic.paused && this.soundEnabled) {
+            this.bgMusic.play()
+                .then(() => {
+                    console.log('Background music resumed');
+                })
+                .catch(error => {
+                    console.log('Failed to resume background music:', error);
+                });
+        }
     }
 
     initVideo() {
@@ -416,6 +462,7 @@ class Game {
         if (this.environment === environment) return;
         
         this.environment = environment;
+        this.currentEnvironment = environment; // Set the current environment for sounds
         
         // Update video source
         const videoUrl = environment === 'jungle' ? 'assets/video.mp4' : 'assets/arctic.mp4';
@@ -432,11 +479,15 @@ class Game {
         // If sound was playing, switch to new environment sound
         const wasPlaying = !this.bgMusic.paused;
         
-        // Pause all sounds
-        this.pauseAllSounds();
+        // Pause current background music
+        this.bgMusic.pause();
+        
+        // Switch to new background music
+        this.bgMusic = new Audio(environment === 'jungle' ? 'assets/bg.m4a' : 'assets/arctic_bg.m4a');
+        this.bgMusic.loop = true;
         
         // If game is running and not paused and sound was playing, play new background music
-        if (this.gameStarted && !this.isPaused && wasPlaying && !this.isMuted) {
+        if (this.gameStarted && !this.isPaused && wasPlaying && this.soundEnabled) {
             this.bgMusic.play().catch(console.error);
         }
         
@@ -498,20 +549,6 @@ class Game {
         return true;
     }
 
-    resumeBackgroundMusic() {
-        if (this.gameStarted && !this.isPaused && this.bgMusic.paused && !this.isMuted) {
-            this.bgMusic.play()
-                .then(() => {
-                    console.log('Background music resumed');
-                })
-                .catch(error => {
-                    console.log('Failed to resume background music:', error);
-                    // Try again after a short delay
-                    setTimeout(() => this.resumeBackgroundMusic(), 1000);
-                });
-        }
-    }
-
     pauseAllSounds() {
         // Pause all background music only
         this.bgMusic.pause();
@@ -540,17 +577,14 @@ class Game {
             }
         });
         
-        // Start background music
-        if (!this.isMuted) {
+        // Start background music only if sound is enabled
+        if (this.soundEnabled) {
             this.bgMusic.play()
                 .then(() => {
                     console.log('Background music started successfully');
                 })
                 .catch(error => {
                     console.log('Background music failed to play:', error);
-                    if (!this.isPaused) {
-                        setTimeout(() => this.resumeBackgroundMusic(), 1000);
-                    }
                 });
         }
         
@@ -624,19 +658,6 @@ class Game {
             // Hide pause overlay
             this.pauseOverlay.classList.remove('visible');
         }
-    }
-
-    toggleSound() {
-        this.soundEnabled = !this.soundEnabled;
-        const currentMusic = this.currentEnvironment === 'jungle' ? this.bgMusic : this.arcticBgMusic;
-        
-        if (this.soundEnabled) {
-            currentMusic.play().catch(e => console.log('Error playing background music:', e));
-        } else {
-            currentMusic.pause();
-        }
-        
-        return this.soundEnabled;
     }
 
     pauseGame() {
