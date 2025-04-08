@@ -82,31 +82,57 @@ class Ball {
     }
 
     generateRandomPosition() {
-        const rect = this.container.getBoundingClientRect();
-        const maxX = rect.width;
-        const maxY = rect.height;
-        const padding = this.currentSize / 2 + 20; // Add padding from edges
+        const containerRect = this.container.getBoundingClientRect();
+        const topSafeZone = 100; // Safe zone for UI elements (progress bar + menu)
         
+        // Calculate available space
+        const maxX = containerRect.width - this.currentSize;
+        const maxY = containerRect.height - this.currentSize;
+        
+        // Generate random position, ensuring the ball stays within bounds
+        // and respects the top safe zone
         this.position = {
-            x: Math.random() * (maxX - padding * 2) + padding,
-            y: Math.random() * (maxY - padding * 2) + padding
+            x: Math.random() * maxX,
+            y: Math.random() * (maxY - topSafeZone) + topSafeZone // Add topSafeZone to minimum Y
         };
     }
 
     isOverlapping() {
-        const minDistance = this.currentSize * 1.5;
+        const margin = 20; // Minimum space between balls
+        const topSafeZone = 100; // Same safe zone as in generateRandomPosition
         
+        // Get this ball's bounds
+        const thisRect = {
+            left: this.position.x - margin,
+            right: this.position.x + this.currentSize + margin,
+            top: this.position.y - margin,
+            bottom: this.position.y + this.currentSize + margin
+        };
+        
+        // Check if too close to top UI
+        if (thisRect.top < topSafeZone) {
+            return true;
+        }
+        
+        // Check overlap with other balls
         for (const ball of this.game.balls) {
             if (ball === this) continue;
             
-            const dx = this.position.x - ball.position.x;
-            const dy = this.position.y - ball.position.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
+            const ballRect = {
+                left: ball.position.x - margin,
+                right: ball.position.x + ball.currentSize + margin,
+                top: ball.position.y - margin,
+                bottom: ball.position.y + ball.currentSize + margin
+            };
             
-            if (distance < minDistance) {
+            if (!(thisRect.right < ballRect.left || 
+                  thisRect.left > ballRect.right || 
+                  thisRect.bottom < ballRect.top || 
+                  thisRect.top > ballRect.bottom)) {
                 return true;
             }
         }
+        
         return false;
     }
 
@@ -311,32 +337,7 @@ class Game {
         this.environment = 'jungle'; // Default environment
         
         // Initialize sounds
-        // Common sound effects
-        this.hitSound = new Audio('assets/hit.m4a');
-        this.missSound = new Audio('assets/miss.m4a');
-        this.popSound = new Audio('assets/pop.m4a');
-        
-        // Environment-specific background music
-        this.backgroundSounds = {
-            jungle: new Audio('assets/bg.m4a'),
-            arctic: new Audio('assets/arctic_bg.m4a')
-        };
-        
-        // Configure background music
-        this.backgroundSounds.jungle.loop = true;
-        this.backgroundSounds.jungle.volume = 0.2;
-        this.backgroundSounds.arctic.loop = true;
-        this.backgroundSounds.arctic.volume = 0.2;
-        
-        // Configure sound effects
-        this.hitSound.volume = 0.3; // Reduced from 0.5
-        this.missSound.volume = 0.3;
-        this.popSound.volume = 0.5;
-        
-        // Preload sound effects
-        this.hitSound.load();
-        this.missSound.load();
-        this.popSound.load();
+        this.initSounds();
         
         // Initialize video
         this.initVideo();
@@ -363,6 +364,18 @@ class Game {
         
         // Create streak progress bar
         this.createStreakProgress();
+    }
+
+    initSounds() {
+        // Create audio elements for background music
+        this.bgMusic = new Audio('assets/bg.m4a');
+        this.bgMusic.loop = true;
+        this.arcticBgMusic = new Audio('assets/arctic_bg.m4a');
+        this.arcticBgMusic.loop = true;
+
+        // Initialize sound state
+        this.soundEnabled = true;
+        this.currentEnvironment = 'jungle';
     }
 
     initVideo() {
@@ -415,14 +428,14 @@ class Game {
         }
         
         // If sound was playing, switch to new environment sound
-        const wasPlaying = !this.backgroundSounds[this.environment === 'jungle' ? 'arctic' : 'jungle'].paused;
+        const wasPlaying = !this.bgMusic.paused;
         
         // Pause all sounds
         this.pauseAllSounds();
         
         // If game is running and not paused and sound was playing, play new background music
         if (this.gameStarted && !this.isPaused && wasPlaying && !this.isMuted) {
-            this.backgroundSounds[this.environment].play().catch(console.error);
+            this.bgMusic.play().catch(console.error);
         }
         
         // Update button states
@@ -472,7 +485,7 @@ class Game {
 
     isSoundPaused(soundType) {
         if (soundType === 'background') {
-            return this.backgroundSounds[this.environment].paused;
+            return this.bgMusic.paused;
         } else if (soundType === 'hit') {
             return this.hitSound.paused;
         } else if (soundType === 'miss') {
@@ -484,8 +497,8 @@ class Game {
     }
 
     resumeBackgroundMusic() {
-        if (this.gameStarted && !this.isPaused && this.backgroundSounds[this.environment].paused && !this.isMuted) {
-            this.backgroundSounds[this.environment].play()
+        if (this.gameStarted && !this.isPaused && this.bgMusic.paused && !this.isMuted) {
+            this.bgMusic.play()
                 .then(() => {
                     console.log('Background music resumed');
                 })
@@ -499,11 +512,7 @@ class Game {
 
     pauseAllSounds() {
         // Pause all background music only
-        for (const env in this.backgroundSounds) {
-            if (!this.backgroundSounds[env].paused) {
-                this.backgroundSounds[env].pause();
-            }
-        }
+        this.bgMusic.pause();
     }
 
     startGame() {
@@ -531,7 +540,7 @@ class Game {
         
         // Start background music
         if (!this.isMuted) {
-            this.backgroundSounds[this.environment].play()
+            this.bgMusic.play()
                 .then(() => {
                     console.log('Background music started successfully');
                 })
@@ -652,28 +661,16 @@ class Game {
     }
 
     toggleSound() {
-        this.isMuted = !this.isMuted;
+        this.soundEnabled = !this.soundEnabled;
+        const currentMusic = this.currentEnvironment === 'jungle' ? this.bgMusic : this.arcticBgMusic;
         
-        // Update sound mute states for background music only
-        this.backgroundSounds.jungle.muted = this.isMuted;
-        this.backgroundSounds.arctic.muted = this.isMuted;
-        
-        // Update sound button icon
-        if (this.isMuted) {
-            this.soundButton.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                    <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
-                </svg>
-            `;
-            this.soundButton.classList.add('active');
+        if (this.soundEnabled) {
+            currentMusic.play().catch(e => console.log('Error playing background music:', e));
         } else {
-            this.soundButton.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                    <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-                </svg>
-            `;
-            this.soundButton.classList.remove('active');
+            currentMusic.pause();
         }
+        
+        return this.soundEnabled;
     }
 
     pauseGame() {
@@ -692,7 +689,7 @@ class Game {
     resumeGame() {
         // Resume background music if not muted
         if (!this.isMuted) {
-            this.backgroundSounds[this.environment].play().catch(console.error);
+            this.bgMusic.play().catch(console.error);
         }
         
         // Resume the background video
@@ -724,33 +721,24 @@ class Game {
     }
 
     playHitSound() {
-        if (!this.gameStarted || this.isPaused) return;
-        
-        // Create a new Audio instance for each hit
-        const hitSound = new Audio('assets/hit.m4a');
-        hitSound.volume = 0.3; // Reduced from 0.5
-        hitSound.muted = this.isMuted;
-        hitSound.play().catch(console.error);
+        if (!this.soundEnabled) return;
+        const hitSound = new Audio(this.currentEnvironment === 'jungle' ? 'assets/hit.m4a' : 'assets/arctic_hit.m4a');
+        hitSound.volume = 0.3;
+        hitSound.play().catch(e => console.log('Error playing hit sound:', e));
     }
 
     playMissSound() {
-        if (!this.gameStarted || this.isPaused) return;
-        
-        // Create a new Audio instance for each miss
-        const missSound = new Audio('assets/miss.m4a');
+        if (!this.soundEnabled) return;
+        const missSound = new Audio(this.currentEnvironment === 'jungle' ? 'assets/miss.m4a' : 'assets/arctic_miss.m4a');
         missSound.volume = 0.3;
-        missSound.muted = this.isMuted;
-        missSound.play().catch(console.error);
+        missSound.play().catch(e => console.log('Error playing miss sound:', e));
     }
 
     playPopSound() {
-        if (!this.gameStarted || this.isPaused) return;
-        
-        // Create a new Audio instance for each pop
-        const popSound = new Audio('assets/pop.m4a');
+        if (!this.soundEnabled) return;
+        const popSound = new Audio(this.currentEnvironment === 'jungle' ? 'assets/pop.m4a' : 'assets/arctic_pop.m4a');
         popSound.volume = 0.5;
-        popSound.muted = this.isMuted;
-        popSound.play().catch(console.error);
+        popSound.play().catch(e => console.log('Error playing pop sound:', e));
     }
 
     spawnNewBall() {
