@@ -16,6 +16,22 @@ body {
     overflow: hidden;
 }
 
+.game-container.firestorm {
+    animation: firestormPulse 2s ease-in-out infinite;
+}
+
+@keyframes firestormPulse {
+    0% {
+        box-shadow: inset 0 0 30px rgba(255, 87, 34, 0.4);
+    }
+    50% {
+        box-shadow: inset 0 0 100px rgba(255, 87, 34, 0.7);
+    }
+    100% {
+        box-shadow: inset 0 0 30px rgba(255, 87, 34, 0.4);
+    }
+}
+
 .background-video {
     position: absolute;
     top: 0;
@@ -427,20 +443,36 @@ body {
     left: 50%;
     transform: translateX(-50%);
     width: 300px;
-    background: rgba(0, 0, 0, 0.5);
-    border-radius: 15px;
-    padding: 15px;
-    color: white;
-    font-family: Arial, sans-serif;
     text-align: center;
-    z-index: 100;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 15px;
+    padding: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.streak-counter {
+    font-size: 24px;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+    margin-bottom: 8px;
 }
 
 .streak-label {
-    font-size: 18px;
-    font-weight: bold;
-    margin-bottom: 8px;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    font-size: 16px;
+    color: #fff;
+    margin: 8px 0;
+    text-shadow: 0 0 3px rgba(255, 255, 255, 0.3);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    height: 0;
+    overflow: hidden;
+}
+
+.streak-label.visible {
+    opacity: 1;
+    height: auto;
 }
 
 .progress-bar {
@@ -454,23 +486,22 @@ body {
 .progress-fill {
     height: 100%;
     width: 0%;
-    background: linear-gradient(90deg, #44cc44, #ffdd00, #ff6b6b, #ff3333);
-    transition: width 0.3s ease-out;
+    background: linear-gradient(90deg, #4CAF50, #FFC107, #FF5722);
+    transition: width 0.3s ease;
+    border-radius: 5px;
 }
 
 @media (max-width: 768px) {
     .streak-progress {
         width: 250px;
         top: 10px;
-        padding: 10px;
+    }
+    
+    .streak-counter {
+        font-size: 20px;
     }
     
     .streak-label {
-        font-size: 16px;
-        margin-bottom: 6px;
-    }
-    
-    .progress-bar {
-        height: 8px;
+        font-size: 14px;
     }
 } 

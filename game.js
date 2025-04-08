@@ -8,7 +8,7 @@ class Ball {
         // Adjust size based on screen size
         const isMobile = window.innerWidth <= 768;
         this.currentSize = isMobile ? 
-            Math.random() * 40 + 80 : // Mobile: 80-120px (was 140-200px)
+            Math.random() * 30 + 50 : // Mobile: 50-80px (was 80-120px)
             Math.random() * 80 + 170;  // Desktop: 170-250px
             
         this.lifespan = Math.random() * 3500 + 3000; // 3-6.5 seconds
@@ -770,21 +770,17 @@ class Game {
     addScore() {
         // Calculate points and bonus based on streak
         let points = 10; // Default points (streak 1-4)
-        let bonusText = 'Normal';
         
         // Store old streak level for comparison
         const oldStreakLevel = this.getStreakLevel(this.streak);
         
-        // Determine points and bonus based on streak tier
-        if (this.streak >= 19) { // Check before incrementing
+        // Determine points based on streak tier
+        if (this.streak >= 19) {
             points = 30;
-            bonusText = 'Firestorm! 🔥🔥';
         } else if (this.streak >= 9) {
             points = 20;
-            bonusText = 'Hot Streak! 🔥';
         } else if (this.streak >= 4) {
             points = 15;
-            bonusText = 'Combo!';
         }
         
         this.score += points;
@@ -795,13 +791,12 @@ class Game {
         // Check if we're entering a new streak level
         const newStreakLevel = this.getStreakLevel(this.streak);
         if (newStreakLevel !== oldStreakLevel) {
-            this.announceStreakLevel(newStreakLevel);
-            this.currentStreakLevel = newStreakLevel;
+            this.showStreakLabel(newStreakLevel);
         }
         
         return {
             points: points,
-            bonusText: bonusText
+            bonusText: newStreakLevel !== 'Normal' ? newStreakLevel : null
         };
     }
 
@@ -812,52 +807,26 @@ class Game {
         return 'Normal';
     }
 
-    announceStreakLevel(level) {
-        // Remove any existing announcement
-        const existingAnnouncement = document.querySelector('.streak-announcement');
-        if (existingAnnouncement) {
-            existingAnnouncement.remove();
-        }
-
-        // Only announce if it's not "Normal"
-        if (level === 'Normal') return;
-
-        // Create and show the announcement
-        const announcement = document.createElement('div');
-        announcement.className = 'streak-announcement';
-        announcement.textContent = level;
-        document.body.appendChild(announcement);
-
-        // Remove the announcement after animation
+    showStreakLabel(text) {
+        this.streakLabel.textContent = text;
+        this.streakLabel.classList.add('visible');
+        
+        // Hide the label after 2 seconds
         setTimeout(() => {
-            if (announcement.parentNode) {
-                announcement.parentNode.removeChild(announcement);
-            }
+            this.streakLabel.classList.remove('visible');
         }, 2000);
     }
 
     handleMiss() {
-        // Check if we're losing a streak level
-        const oldLevel = this.currentStreakLevel;
+        if (this.streak > 0) {
+            this.showStreakLabel('Streak Lost! 💔');
+            // Remove firestorm effect when streak is lost
+            this.gameContainer.classList.remove('firestorm');
+        }
         this.streak = 0;
         this.currentStreakLevel = 'Normal';
         this.updateScore();
         this.updateStreakProgress();
-        
-        // If we lost a special streak level, show "Streak Lost!"
-        if (oldLevel !== 'Normal') {
-            const announcement = document.createElement('div');
-            announcement.className = 'streak-announcement';
-            announcement.textContent = 'Streak Lost! 💔';
-            document.body.appendChild(announcement);
-            
-            // Remove the announcement after animation
-            setTimeout(() => {
-                if (announcement.parentNode) {
-                    announcement.parentNode.removeChild(announcement);
-                }
-            }, 2000);
-        }
     }
 
     updateScore() {
@@ -882,6 +851,10 @@ class Game {
         this.streakProgress = document.createElement('div');
         this.streakProgress.className = 'streak-progress';
         
+        // Create streak counter
+        this.streakCounter = document.createElement('div');
+        this.streakCounter.className = 'streak-counter';
+        
         // Create label
         this.streakLabel = document.createElement('div');
         this.streakLabel.className = 'streak-label';
@@ -896,6 +869,7 @@ class Game {
         
         // Assemble elements
         this.progressBarContainer.appendChild(this.progressFill);
+        this.streakProgress.appendChild(this.streakCounter);
         this.streakProgress.appendChild(this.streakLabel);
         this.streakProgress.appendChild(this.progressBarContainer);
         document.body.appendChild(this.streakProgress);
@@ -907,25 +881,26 @@ class Game {
     updateStreakProgress() {
         let nextThreshold, progress;
         
+        // Update streak counter
+        this.streakCounter.textContent = `${this.streak}`;
+        
+        // Calculate progress
         if (this.streak < 5) {
-            // Progress to Combo (0-4)
             nextThreshold = 5;
             progress = (this.streak / nextThreshold) * 100;
-            this.streakLabel.textContent = `Normal (${this.streak}/${nextThreshold})`;
+            this.gameContainer.classList.remove('firestorm');
         } else if (this.streak < 10) {
-            // Progress to Hot Streak (5-9)
             nextThreshold = 10;
             progress = (this.streak / nextThreshold) * 100;
-            this.streakLabel.textContent = `Combo! (${this.streak}/${nextThreshold})`;
+            this.gameContainer.classList.remove('firestorm');
         } else if (this.streak < 20) {
-            // Progress to Firestorm (10-19)
             nextThreshold = 20;
             progress = (this.streak / nextThreshold) * 100;
-            this.streakLabel.textContent = `Hot Streak! 🔥 (${this.streak}/${nextThreshold})`;
+            this.gameContainer.classList.remove('firestorm');
         } else {
-            // Firestorm (20+)
             progress = 100;
-            this.streakLabel.textContent = `Firestorm! 🔥🔥 (${this.streak})`;
+            // Add firestorm effect when streak is 20 or higher
+            this.gameContainer.classList.add('firestorm');
         }
         
         this.progressFill.style.width = `${progress}%`;
